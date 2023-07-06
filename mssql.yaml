@@ -1,0 +1,66 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: mssql-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mssql
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: mssql
+    spec:
+      volumes:
+        - name: mssqldb
+          persistentVolumeClaim:
+            claimName: mssql-data
+      containers:
+        - resources:
+            limits:
+              cpu: '2'
+              memory: 2G
+            requests:
+              cpu: '2'
+              memory: 2G
+          terminationMessagePath: /dev/termination-log
+          name: mssql
+          env:
+            - name: MSSQL_PID
+              value: Developer
+            - name: ACCEPT_EULA
+              value: 'Y'
+            - name: MSSQL_SA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mssql
+                  key: MSSQL_SA_PASSWORD
+          securityContext:
+            capabilities:
+              add:
+                - NET_BIND_SERVICE
+          ports:
+            - containerPort: 1433
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: mssqldb
+              mountPath: /var/opt/mssql
+          terminationMessagePolicy: File
+          image: 'mcr.microsoft.com/mssql/server:2022-latest'
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext:
+        fsGroupChangePolicy: OnRootMismatch
+      hostname: mssqlinst
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
